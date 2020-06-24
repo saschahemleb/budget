@@ -39,7 +39,10 @@ class ProcessRecurrings implements ShouldQueue
 
         $dayOfMonth = (int) date('j');
 
-        $recurrings = $this->recurringRepository->getDueByDayOfMonth($dayOfMonth);
+        $monthtlyRecurrings = $this->recurringRepository->getDueMonthly($dayOfMonth);
+        $dailyRecurrings = $this->recurringRepository->getDueDaily();
+
+        $recurrings = $monthtlyRecurrings->combine($dailyRecurrings);
 
         foreach ($recurrings as $recurring) {
             if ($recurring->type !== 'earning' && $recurring->type !== 'spending') {
