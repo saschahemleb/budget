@@ -21,6 +21,38 @@ class RecurringRepository
         ];
     }
 
+    /**
+     * Grabs recurrings that checks all of the following statements
+     *  targeted day is today, or in future if today is last day of the month
+     *  has a starting date of today, or earlier
+     *  has no expiration date, or one that is in the future
+     *  has not been used yet, or prior to today
+     */
+    public function getDueByDayOfMonth(int $dayOfMonth): iterable
+    {
+        $dateToday = date('Y-m-d');
+        $daysInMonth = (int) date('t');
+
+        return Recurring::where('interval', 'monthly')
+            ->when($daysInMonth == $dayOfMonth, function ($query) use ($dayOfMonth) {
+                return $query->where('day', '>=', $dayOfMonth);
+            }, function ($query) use ($dayOfMonth) {
+                return $query->where('day', $dayOfMonth);
+            })
+            ->where('starts_on', '<=', $dateToday)
+            ->where(function ($query) use ($dateToday) {
+                $query
+                    ->where('ends_on', '>=', $dateToday)
+                    ->orWhere('ends_on', null);
+            })
+            ->where(function ($query) use ($dateToday) {
+                $query
+                    ->where('last_used_on', '<', $dateToday)
+                    ->orWhere('last_used_on', null);
+            })
+            ->get();
+    }
+
     public function create(
         int $spaceId,
         string $type,
@@ -45,5 +77,16 @@ class RecurringRepository
             'description' => $description,
             'amount' => $amount
         ]);
+    }
+
+    public function update(int $id, array $data): void
+    {
+        $recurring = Recurring::find($id);
+
+        if (!$recurring) {
+            throw new Exception('Could not find recurring with ID ' . $id);
+        }
+
+        $recurring->fill($data)->save();
     }
 }
